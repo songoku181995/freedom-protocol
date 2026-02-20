@@ -5,6 +5,15 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 // =======================
+// LOAD SPRITES
+// =======================
+const freemanImg = new Image();
+freemanImg.src = "freeman.png";
+
+const zombieImg = new Image();
+zombieImg.src = "zombie.png";
+
+// =======================
 // PLAYER: MR. FREEMAN
 // =======================
 let player = {
@@ -27,7 +36,7 @@ let wave = 1;
 let gameOver = false;
 
 // =======================
-// CONTROLS
+// INPUT
 // =======================
 document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
@@ -41,7 +50,6 @@ canvas.addEventListener("click", e => {
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
-
   const angle = Math.atan2(my - player.y, mx - player.x);
 
   bullets.push({
@@ -53,52 +61,46 @@ canvas.addEventListener("click", e => {
 });
 
 // =======================
-// ENEMY SPAWNER
+// ENEMY WAVES
 // =======================
 function spawnWave() {
   for (let i = 0; i < wave; i++) {
-    const rand = Math.random();
-
+    const r = Math.random();
     let enemy;
 
-    if (rand < 0.5) {
+    if (r < 0.55) {
       // ZOMBIE
       enemy = {
-        name: "Zombie",
         type: "zombie",
-        color: "green",
-        size: 18,
+        size: 26,
         hp: 40 + wave * 5,
-        speed: 0.8
+        speed: 0.8,
+        damage: 0.25
       };
-    } else if (rand < 0.8) {
+    } else if (r < 0.8) {
       // CORRUPT OFFICIAL
       enemy = {
-        name: "Corrupt Official",
         type: "official",
-        color: "red",
-        size: 16,
+        size: 18,
         hp: 30 + wave * 4,
-        speed: 1.4
+        speed: 1.4,
+        damage: 0.35
       };
     } else {
       // MONSTER
       enemy = {
-        name: "Monster",
         type: "monster",
-        color: "purple",
-        size: 26,
+        size: 32,
         hp: 80 + wave * 10,
-        speed: 0.6
+        speed: 0.6,
+        damage: 0.6
       };
     }
 
     enemy.x = Math.random() * canvas.width;
     enemy.y = Math.random() * canvas.height;
-
     enemies.push(enemy);
   }
-
   wave++;
 }
 
@@ -112,7 +114,7 @@ setInterval(() => {
 function update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // GAME OVER
+  // ---------- GAME OVER ----------
   if (player.hp <= 0) {
     gameOver = true;
     ctx.fillStyle = "red";
@@ -124,7 +126,7 @@ function update() {
     return;
   }
 
-  // PLAYER MOVEMENT
+  // ---------- PLAYER MOVEMENT ----------
   if (keys["w"]) player.y -= player.speed;
   if (keys["s"]) player.y += player.speed;
   if (keys["a"]) player.x -= player.speed;
@@ -133,17 +135,28 @@ function update() {
   player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
   player.y = Math.max(0, Math.min(canvas.height - player.size, player.y));
 
-  // DRAW PLAYER
-  ctx.fillStyle = "cyan";
-  ctx.fillRect(player.x, player.y, player.size, player.size);
-  ctx.fillStyle = "white";
-  ctx.font = "12px Arial";
-  ctx.fillText(player.name, player.x - 5, player.y - 5);
+  // ---------- PLAYER HITBOX ----------
+  const playerHitbox = {
+    x: player.x + 10,
+    y: player.y + 10,
+    w: player.size,
+    h: player.size
+  };
 
-  // BULLETS
+  // ---------- DRAW MR. FREEMAN ----------
+  ctx.drawImage(
+    freemanImg,
+    player.x,
+    player.y,
+    player.size * 1.5,
+    player.size * 1.8
+  );
+
+  // ---------- BULLETS ----------
   bullets.forEach((b, bi) => {
     b.x += b.dx;
     b.y += b.dy;
+
     ctx.fillStyle = "yellow";
     ctx.fillRect(b.x, b.y, 4, 4);
 
@@ -152,32 +165,34 @@ function update() {
     }
   });
 
-  // ENEMIES
+  // ---------- ENEMIES ----------
   enemies.forEach((e, ei) => {
-    ctx.fillStyle = e.color;
-    ctx.fillRect(e.x, e.y, e.size, e.size);
-
-    // Label
-    ctx.fillStyle = "white";
-    ctx.font = "10px Arial";
-    ctx.fillText(e.name, e.x - 5, e.y - 3);
-
-    // Move toward Mr. Freeman
     const angle = Math.atan2(player.y - e.y, player.x - e.x);
     e.x += Math.cos(angle) * e.speed;
     e.y += Math.sin(angle) * e.speed;
 
-    // Damage player
-    if (
-      player.x < e.x + e.size &&
-      player.x + player.size > e.x &&
-      player.y < e.y + e.size &&
-      player.y + player.size > e.y
-    ) {
-      player.hp -= e.type === "monster" ? 0.5 : 0.25;
+    // DRAW ENEMY
+    if (e.type === "zombie") {
+      ctx.drawImage(zombieImg, e.x, e.y, e.size * 1.6, e.size * 1.6);
+    } else if (e.type === "official") {
+      ctx.fillStyle = "red";
+      ctx.fillRect(e.x, e.y, e.size, e.size);
+    } else {
+      ctx.fillStyle = "purple";
+      ctx.fillRect(e.x, e.y, e.size, e.size);
     }
 
-    // Bullet collision
+    // DAMAGE PLAYER
+    if (
+      playerHitbox.x < e.x + e.size &&
+      playerHitbox.x + playerHitbox.w > e.x &&
+      playerHitbox.y < e.y + e.size &&
+      playerHitbox.y + playerHitbox.h > e.y
+    ) {
+      player.hp -= e.damage;
+    }
+
+    // BULLET COLLISION
     bullets.forEach((b, bi) => {
       if (
         b.x < e.x + e.size &&
@@ -196,7 +211,7 @@ function update() {
     });
   });
 
-  // HUD
+  // ---------- HUD ----------
   ctx.fillStyle = "white";
   ctx.font = "16px Arial";
   ctx.fillText("HP: " + Math.max(0, Math.floor(player.hp)), 10, 20);
