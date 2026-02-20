@@ -1,17 +1,24 @@
-// Canvas setup
+// =======================
+// CANVAS SETUP
+// =======================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Player
+// =======================
+// PLAYER: MR. FREEMAN
+// =======================
 let player = {
+  name: "Mr. Freeman",
   x: canvas.width / 2,
   y: canvas.height / 2,
-  size: 20,
+  size: 22,
   speed: 5,
   hp: 100
 };
 
-// Game state
+// =======================
+// GAME STATE
+// =======================
 let enemies = [];
 let bullets = [];
 let keys = {};
@@ -19,11 +26,15 @@ let score = 0;
 let wave = 1;
 let gameOver = false;
 
-// Controls
+// =======================
+// CONTROLS
+// =======================
 document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-// Shooting
+// =======================
+// SHOOTING
+// =======================
 canvas.addEventListener("click", e => {
   if (gameOver) return;
 
@@ -41,18 +52,53 @@ canvas.addEventListener("click", e => {
   });
 });
 
-// Enemy spawner
+// =======================
+// ENEMY SPAWNER
+// =======================
 function spawnWave() {
   for (let i = 0; i < wave; i++) {
-    enemies.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      size: 15,
-      hp: 30 + wave * 5,
-      speed: 0.5 + wave * 0.1,
-      type: Math.random() > 0.6 ? "monster" : "zombie"
-    });
+    const rand = Math.random();
+
+    let enemy;
+
+    if (rand < 0.5) {
+      // ZOMBIE
+      enemy = {
+        name: "Zombie",
+        type: "zombie",
+        color: "green",
+        size: 18,
+        hp: 40 + wave * 5,
+        speed: 0.8
+      };
+    } else if (rand < 0.8) {
+      // CORRUPT OFFICIAL
+      enemy = {
+        name: "Corrupt Official",
+        type: "official",
+        color: "red",
+        size: 16,
+        hp: 30 + wave * 4,
+        speed: 1.4
+      };
+    } else {
+      // MONSTER
+      enemy = {
+        name: "Monster",
+        type: "monster",
+        color: "purple",
+        size: 26,
+        hp: 80 + wave * 10,
+        speed: 0.6
+      };
+    }
+
+    enemy.x = Math.random() * canvas.width;
+    enemy.y = Math.random() * canvas.height;
+
+    enemies.push(enemy);
   }
+
   wave++;
 }
 
@@ -60,7 +106,9 @@ setInterval(() => {
   if (!gameOver) spawnWave();
 }, 3000);
 
-// Game loop
+// =======================
+// GAME LOOP
+// =======================
 function update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -72,46 +120,49 @@ function update() {
     ctx.fillText("GAME OVER", canvas.width / 2 - 120, canvas.height / 2);
     ctx.font = "20px Arial";
     ctx.fillText("Final Score: " + score, canvas.width / 2 - 80, canvas.height / 2 + 40);
-    ctx.fillText("Refresh to Restart", canvas.width / 2 - 90, canvas.height / 2 + 70);
+    ctx.fillText("Mr. Freeman has fallen", canvas.width / 2 - 110, canvas.height / 2 + 70);
     return;
   }
 
-  // Player movement
+  // PLAYER MOVEMENT
   if (keys["w"]) player.y -= player.speed;
   if (keys["s"]) player.y += player.speed;
   if (keys["a"]) player.x -= player.speed;
   if (keys["d"]) player.x += player.speed;
 
-  // Clamp player
   player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
   player.y = Math.max(0, Math.min(canvas.height - player.size, player.y));
 
-  // Draw player
+  // DRAW PLAYER
   ctx.fillStyle = "cyan";
   ctx.fillRect(player.x, player.y, player.size, player.size);
+  ctx.fillStyle = "white";
+  ctx.font = "12px Arial";
+  ctx.fillText(player.name, player.x - 5, player.y - 5);
 
-  // Bullets
+  // BULLETS
   bullets.forEach((b, bi) => {
     b.x += b.dx;
     b.y += b.dy;
     ctx.fillStyle = "yellow";
     ctx.fillRect(b.x, b.y, 4, 4);
 
-    // Remove offscreen bullets
-    if (
-      b.x < 0 || b.x > canvas.width ||
-      b.y < 0 || b.y > canvas.height
-    ) {
+    if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
       bullets.splice(bi, 1);
     }
   });
 
-  // Enemies
+  // ENEMIES
   enemies.forEach((e, ei) => {
-    ctx.fillStyle = e.type === "monster" ? "purple" : "green";
+    ctx.fillStyle = e.color;
     ctx.fillRect(e.x, e.y, e.size, e.size);
 
-    // Move toward player
+    // Label
+    ctx.fillStyle = "white";
+    ctx.font = "10px Arial";
+    ctx.fillText(e.name, e.x - 5, e.y - 3);
+
+    // Move toward Mr. Freeman
     const angle = Math.atan2(player.y - e.y, player.x - e.x);
     e.x += Math.cos(angle) * e.speed;
     e.y += Math.sin(angle) * e.speed;
@@ -123,7 +174,7 @@ function update() {
       player.y < e.y + e.size &&
       player.y + player.size > e.y
     ) {
-      player.hp -= 0.2;
+      player.hp -= e.type === "monster" ? 0.5 : 0.25;
     }
 
     // Bullet collision
@@ -139,7 +190,7 @@ function update() {
 
         if (e.hp <= 0) {
           enemies.splice(ei, 1);
-          score += 10;
+          score += e.type === "monster" ? 30 : 10;
         }
       }
     });
